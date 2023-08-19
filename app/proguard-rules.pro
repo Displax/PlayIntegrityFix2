@@ -1,0 +1,3 @@
+-keep class es.chiteroman.playintegrityfix.EntryPoint {init();}
+-keep class es.chiteroman.playintegrityfix.ProxyProvider
+-keep class es.chiteroman.playintegrityfix.ProxyKeyStoreSpi
