@@ -1,7 +1,5 @@
 package es.chiteroman.playintegrityfix;
 
-import android.util.Log;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -17,7 +15,7 @@ import java.util.Date;
 import java.util.Enumeration;
 import java.util.Locale;
 
-public final class ProxyKeyStoreSpi extends KeyStoreSpi {
+public class ProxyKeyStoreSpi extends KeyStoreSpi {
     public static volatile KeyStoreSpi keyStoreSpi;
 
     @Override
@@ -27,8 +25,7 @@ public final class ProxyKeyStoreSpi extends KeyStoreSpi {
 
     @Override
     public Certificate[] engineGetCertificateChain(String alias) {
-        if (Arrays.stream(Thread.currentThread().getStackTrace()).anyMatch(e -> e.getClassName().toLowerCase(Locale.ENGLISH).contains("droidguard"))) {
-            Log.d("SNFix/Java", "DroidGuard call, throw exception");
+        if (Arrays.stream(Thread.currentThread().getStackTrace()).anyMatch(e -> e.getClassName().toLowerCase(Locale.ROOT).contains("droidguard"))) {
             EntryPoint.spoofDevice();
             throw new UnsupportedOperationException();
         }

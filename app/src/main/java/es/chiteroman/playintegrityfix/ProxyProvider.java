@@ -2,8 +2,8 @@ package es.chiteroman.playintegrityfix;
 
 import java.security.Provider;
 
-public final class ProxyProvider extends Provider {
-    ProxyProvider(Provider provider) {
+public class ProxyProvider extends Provider {
+    public ProxyProvider(Provider provider) {
         super(provider.getName(), provider.getVersion(), provider.getInfo());
         putAll(provider);
         put("KeyStore.AndroidKeyStore", ProxyKeyStoreSpi.class.getName());
