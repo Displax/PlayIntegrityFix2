@@ -13,7 +13,7 @@ typedef void (*T_Callback)(void *, const char *, const char *, uint32_t);
 
 static void (*o_hook)(const prop_info *, T_Callback, void *);
 
-static T_Callback o_callback;
+static volatile T_Callback o_callback;
 
 static void
 handle_system_property(void *cookie, const char *name, const char *value, uint32_t serial) {
@@ -27,13 +27,6 @@ handle_system_property(void *cookie, const char *name, const char *value, uint32
 static void my_hook(const prop_info *pi, T_Callback callback, void *cookie) {
     o_callback = callback;
     o_hook(pi, handle_system_property, cookie);
-}
-
-static bool isFirstApiLevelGreater32OrNull() {
-    char value[PROP_VALUE_MAX];
-    if (__system_property_get("ro.product.first_api_level", value) < 1) return true;
-    int first_api_level = std::stoi(value);
-    return first_api_level > 32;
 }
 
 class PlayIntegrityFix : public zygisk::ModuleBase {
@@ -73,16 +66,8 @@ public:
                 api->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
                 return;
             }
-            if (recv(fd, &hookProps, sizeof(hookProps), 0) < 1) {
-                close(fd);
-                dexFile.clear();
-                dexFile.shrink_to_fit();
-                api->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
-                return;
-            }
             close(fd);
-
-            if (hookProps) return;
+            return;
         }
 
         api->setOption(zygisk::DLCLOSE_MODULE_LIBRARY);
@@ -93,19 +78,15 @@ public:
 
         LOGD("Dex file size: %d", static_cast<int>(dexFile.size()));
 
-        if (hookProps) {
-            void *handle = DobbySymbolResolver(nullptr, "__system_property_read_callback");
-            if (handle == nullptr) {
-                LOGD("Can't get __system_property_read_callback handle, WTF ?");
-                dexFile.clear();
-                dexFile.shrink_to_fit();
-                return;
-            }
-            LOGD("Get __system_property_read_callback handle at %p", handle);
-            DobbyHook(handle, (dobby_dummy_func_t) my_hook, (dobby_dummy_func_t *) &o_hook);
-        } else {
-            LOGD("Your device has first_api_level less than 33 so no need to spoof it");
+        void *handle = DobbySymbolResolver(nullptr, "__system_property_read_callback");
+        if (handle == nullptr) {
+            LOGD("Can't get __system_property_read_callback handle, WTF ?");
+            dexFile.clear();
+            dexFile.shrink_to_fit();
+            return;
         }
+        LOGD("Get __system_property_read_callback handle at %p", handle);
+        DobbyHook(handle, (dobby_dummy_func_t) my_hook, (dobby_dummy_func_t *) &o_hook);
 
         LOGD("getSystemClassLoader");
         auto clClass = env->FindClass("java/lang/ClassLoader");
@@ -150,7 +131,6 @@ private:
     zygisk::Api *api = nullptr;
     JNIEnv *env = nullptr;
     std::vector<char> dexFile;
-    bool hookProps = false;
 };
 
 static void companion(int fd) {
@@ -169,9 +149,6 @@ static void companion(int fd) {
 
     dexFile.clear();
     dexFile.shrink_to_fit();
-
-    bool hookProps = isFirstApiLevelGreater32OrNull();
-    send(fd, &hookProps, sizeof(hookProps), 0);
 }
 
 REGISTER_ZYGISK_MODULE(PlayIntegrityFix)
